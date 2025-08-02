@@ -16,22 +16,44 @@ photo = None
 
 def show_image(url):
     global photo, image_window, label
-    try:
-        # Создаем окно только при генерации изображения
+
+        # Создаем окно при первом вызове
+    if image_window is None or not image_window.winfo_exists():
         image_window = Toplevel(root)
         image_window.title('Сгенерированные изображения')
-        label = Label(image_window)
-        label.pack(pady=10)
+        image_window.geometry('600x600')
 
+        # Основной контейнер
+        frame = Frame(image_window)
+        frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        # Label для изображения
+        label = Label(frame)
+        label.pack(fill=BOTH, expand=True)
+
+        # Кнопка закрытия
+        Button(frame, text='Закрыть', command=image_window.destroy).pack(pady=10)
+
+    try:
         response = requests.get(url, stream=True)
         response.raise_for_status()
         img_data = BytesIO(response.content)
         img = Image.open(img_data)
         img.thumbnail((500, 500))
 
+        # Отображаем
         photo = ImageTk.PhotoImage(img)
         label.config(image=photo)
         label.image = photo
+
+        # Центрируем окно
+        image_window.update_idletasks()
+        width = image_window.winfo_width()
+        height = image_window.winfo_height()
+        x = (image_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (image_window.winfo_screenheight() // 2) - (height // 2)
+        image_window.geometry(f'+{x}+{y}')
+
     except Exception as e:
         mb.showerror('Ошибка!', f'Возникла ошибка {e}')
         if image_window:
