@@ -42,10 +42,16 @@ async def generate_image(prompt, **kwargs):
     """Генерирует изображение по промпту и возвращает URL"""
     try:
         client = AsyncClient()
+        # Получаем негативный промпт из kwargs, если он есть
+        negative_prompt = kwargs.get('negative_prompt', None)
         response = await client.images.generate(
             prompt=prompt,
-            model="flux",
-            response_format="url"
+            negative_prompt=negative_prompt, # Негативный промпт
+            model="prodia",  # Используем Prodia (Stable Diffusion)
+            response_format="url",
+            steps=30,  # Количество шагов генерации
+            cfg_scale=9,  # Сила соответствия промпту (7-10)
+            sampler="DPM++ 2M Karras"  # Опционально: метод сэмплирования
         )
         return response.data[0].url if response.data else None
     except Exception as e:
@@ -55,12 +61,18 @@ async def generate_image(prompt, **kwargs):
 
 async def main():
     """Асинхронная часть: получает промпт, генерирует изображение и возвращает URL"""
+    # Получаем позитивный промпт из первого поля
     prompt = pos_prompt.get('1.0', END).strip()
     if not prompt:
         mb.showerror('Ошибка!, Введите описание изображения!')
         return None
 
-    image_url = await generate_image(prompt)
+    # Получаем негативный промпт из второго поля
+    negative_prompt = neg_prompt.get('1.0', END).strip()
+
+    image_url = await generate_image(prompt,
+                                     negative_prompt=negative_prompt
+                                     )
     if image_url:
         show_image(image_url)
     else:
