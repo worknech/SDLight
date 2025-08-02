@@ -1,6 +1,7 @@
 import asyncio
 from g4f.client import AsyncClient
 from tkinter import *
+from tkinter import ttk
 from tkinter import messagebox as mb
 import requests
 from PIL import Image, ImageTk
@@ -12,6 +13,15 @@ root = None
 image_window = None
 label = None
 photo = None
+progress = None
+
+
+def update_progress(value, message=""):
+    """Обновляет прогресс-бар и текст статуса"""
+    progress['value'] = value
+    progress_label.config(text=message)
+    root.update_idletasks()
+
 
 def save_image(img):
     """Сохранение изображений на диск"""
@@ -28,12 +38,12 @@ def save_image(img):
             mb.showerror("Ошибка!", f"Не удалось сохранить: {e}")
 
 
-
 def show_image(url):
     global photo, image_window, label, original_image
 
-        # Создаем окно при первом вызове
+    # Создаем окно изображения
     if image_window is None or not image_window.winfo_exists():
+        update_progress(80, "Загрузка изображения...")
         image_window = Toplevel(root)
         image_window.title('Сгенерированные изображения')
         image_window.geometry('600x600')
@@ -74,7 +84,12 @@ def show_image(url):
         y = (image_window.winfo_screenheight() // 2) - (height // 2)
         image_window.geometry(f'+{x}+{y}')
 
+        update_progress(100, "Готово!")
+        # Задержка перед скрытием прогресс-бара
+        root.after(1000, lambda: update_progress(0, ""))
+
     except Exception as e:
+        update_progress(0, "")
         mb.showerror('Ошибка!', f'Возникла ошибка {e}')
         if image_window:
             image_window.destroy()
@@ -83,12 +98,20 @@ def show_image(url):
 async def generate_image(prompt, **kwargs):
     """Генерирует изображение по промпту и возвращает URL"""
     try:
+        update_progress(20, "Подготовка к генерации...")
+        await asyncio.sleep(0.1)  # Имитация работы
+
         client = AsyncClient()
+        update_progress(40, "Подключение к серверу...")
+        await asyncio.sleep(0.1)
+
         # Получаем негативный промпт из kwargs, если он есть
         negative_prompt = kwargs.get('negative_prompt', None)
+        update_progress(60, "Генерация изображения...")
+
         response = await client.images.generate(
             prompt=prompt,
-            negative_prompt=negative_prompt, # Негативный промпт
+            negative_prompt=negative_prompt,  # Негативный промпт
             model="prodia",  # Используем Prodia (Stable Diffusion)
             response_format="url",
             steps=30,  # Количество шагов генерации
@@ -112,12 +135,14 @@ async def main():
     # Получаем негативный промпт из второго поля
     negative_prompt = neg_prompt.get('1.0', END).strip()
 
+    update_progress(10, "Начало генерации...")
     image_url = await generate_image(prompt,
                                      negative_prompt=negative_prompt
                                      )
     if image_url:
         show_image(image_url)
     else:
+        update_progress(0, "")
         mb.showerror("Ошибка!", "Не удалось сгенерировать изображение")
 
 
@@ -154,6 +179,16 @@ scrollbar_n.pack(side=RIGHT, fill=Y)
 neg_prompt = Text(frame_neg, width=50, height=3, wrap='word', yscrollcommand=scrollbar_n.set)
 neg_prompt.pack(side=LEFT, fill=BOTH, expand=True)
 scrollbar_n.config(command=neg_prompt.yview)
+
+# Прогресс-бар
+progress_frame = Frame(root)
+progress_frame.pack(pady=5, fill=X, padx=10)
+
+progress_label = Label(progress_frame, text="", height=1)
+progress_label.pack()
+
+progress = ttk.Progressbar(progress_frame, orient=HORIZONTAL, length=100, mode='determinate')
+progress.pack(fill=X)
 
 button_st = Button(root, text='Сгенерировать изображение', command=start_async_main)
 button_st.pack()
