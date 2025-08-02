@@ -1,11 +1,11 @@
 import asyncio
 from g4f.client import AsyncClient
 from tkinter import *
-from tkinter import ttk
 from tkinter import messagebox as mb
 import requests
 from PIL import Image, ImageTk
 from io import BytesIO
+from tkinter import filedialog
 
 # Глобальные переменные
 root = None
@@ -13,9 +13,24 @@ image_window = None
 label = None
 photo = None
 
+def save_image(img):
+    """Сохранение изображений на диск"""
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".jpg",
+        filetypes=[("PNG файлы", "*.png"), ("JPEG файлы", "*.jpg"), ("Все файлы", "*.*")],
+        title="Сохраить изображение"
+    )
+    if file_path:
+        try:
+            img.save(file_path)
+            mb.showinfo("Успешно", "Изображение сохранено!")
+        except Exception as e:
+            mb.showerror("Ошибка!", f"Не удалось сохранить: {e}")
+
+
 
 def show_image(url):
-    global photo, image_window, label
+    global photo, image_window, label, original_image
 
         # Создаем окно при первом вызове
     if image_window is None or not image_window.winfo_exists():
@@ -31,8 +46,11 @@ def show_image(url):
         label = Label(frame)
         label.pack(fill=BOTH, expand=True)
 
-        # Кнопка закрытия
-        Button(frame, text='Закрыть', command=image_window.destroy).pack(pady=10)
+        # Кнопки закрытия и сохранения
+        btn_frame = Frame(frame)
+        btn_frame.pack(fill=X, pady=5)
+        Button(btn_frame, text="Сохранить", command=lambda: save_image(original_image)).pack(side=LEFT)
+        Button(btn_frame, text="Закрыть", command=image_window.destroy).pack(side=RIGHT)
 
     try:
         response = requests.get(url, stream=True)
@@ -45,6 +63,8 @@ def show_image(url):
         photo = ImageTk.PhotoImage(img)
         label.config(image=photo)
         label.image = photo
+
+        original_image = img.copy()
 
         # Центрируем окно
         image_window.update_idletasks()
