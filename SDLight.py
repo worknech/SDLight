@@ -3,26 +3,39 @@ from g4f.client import AsyncClient
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox as mb
-
 import requests
 from PIL import Image, ImageTk
 from io import BytesIO
 
+# Глобальные переменные
+root = None
+image_window = None
+label = None
+photo = None
 
-async def main():
-    """Асинхронная часть: получает промпт, генерирует изображение и возвращает URL"""
-    prompt = pos_prompt.get('1.0', END)
-    if not prompt:
-        mb.showerror('Ошибка!, Введите описание изображения!')
-        return None
 
-    image_url = await generate_image(prompt)
-    if image_url:
-        print(image_url)
-        return image_url
-    else:
-        mb.showerror("Ошибка!", "Не удалось сгенерировать изображение")
-        return None
+def show_image(url):
+    global photo, image_window, label
+    try:
+        # Создаем окно только при генерации изображения
+        image_window = Toplevel(root)
+        image_window.title('Сгенерированные изображения')
+        label = Label(image_window)
+        label.pack(pady=10)
+
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        img_data = BytesIO(response.content)
+        img = Image.open(img_data)
+        img.thumbnail((500, 500))
+
+        photo = ImageTk.PhotoImage(img)
+        label.config(image=photo)
+        label.image = photo
+    except Exception as e:
+        mb.showerror('Ошибка!', f'Возникла ошибка {e}')
+        if image_window:
+            image_window.destroy()
 
 
 async def generate_image(prompt, **kwargs):
@@ -40,9 +53,26 @@ async def generate_image(prompt, **kwargs):
         return None
 
 
+async def main():
+    """Асинхронная часть: получает промпт, генерирует изображение и возвращает URL"""
+    prompt = pos_prompt.get('1.0', END).strip()
+    if not prompt:
+        mb.showerror('Ошибка!, Введите описание изображения!')
+        return None
+
+    image_url = await generate_image(prompt)
+    if image_url:
+        show_image(image_url)
+    else:
+        mb.showerror("Ошибка!", "Не удалось сгенерировать изображение")
+
+
 def start_async_main():
     """Запускает async_main() в asyncio"""
-    asyncio.run(main())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
+    loop.close()
 
 
 root = Tk()
@@ -73,10 +103,5 @@ scrollbar_n.config(command=neg_prompt.yview)
 
 button_st = Button(root, text='Сгенерировать изображение', command=start_async_main)
 button_st.pack()
-
-top_level_window = Toplevel(root)
-top_level_window.title('Сгенерированные изображения')
-label = Label(top_level_window, text='Изображения')
-label.pack(pady=10)
 
 root.mainloop()
